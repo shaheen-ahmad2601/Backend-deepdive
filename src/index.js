@@ -16,21 +16,6 @@ connectDB() // this will return a promise and further handle this.
   });
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   
 
 // function connectDB(){}

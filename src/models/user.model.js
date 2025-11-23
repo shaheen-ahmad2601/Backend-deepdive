@@ -1,90 +1,62 @@
-import mongoose, { Schema } from "mongoose";
+import mongoose from "mongoose";
+import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt"; // we connot directly use bcrypt for hasing, we need to use some hooks from mongoose
 
-const userSchema = new Schema(
+const userSchema = new mongoose.Schema(
   {
-    username: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-      index: true,
-      lowercase: true,
-    },
+    fullname: { type: String, required: true, trim: true },
     email: {
       type: String,
       required: true,
       unique: true,
-      trim: true,
       lowercase: true,
-    },
-    fullname: {
-      type: String,
-      required: true,
       trim: true,
-      index: true,
     },
-    avatar: {
-      type: String, // cloudinary url
+    username: {
+      type: String,
       required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
     },
-    coverimage: {
-      type: String, // cloudinary url
-      required: false,
-    },
-    watchhistory: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Video",
-      },
-    ],
-    password: {
-      type: String,
-      required: [true, "Password is required"],
-      minlength: [6, "Password must be at least 6 characters long"],
-    },
-    refreshToken: {
-      type: String,
-      default: null,
-    },
+    password: { type: String, required: true },
+    avatar: { type: String, default: "" },
+    coverimage: { type: String, default: "" },
+    refreshToken: { type: String, default: "" },
   },
   { timestamps: true }
 );
 
+// Hash password before save
 userSchema.pre("save", async function (next) {
-  //its a middleware - dont use arrow func, here reference is important
-  if (!this.isModified("password")) return next(); // to avoid rehashing of password if other fields are updated
-
-  this.password = await bcrypt.hash(this.password, 10); // if modified then hash it
-  next();
+  if (!this.isModified("password")) return next();
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    return next();
+  } catch (err) {
+    return next(err);
+  }
 });
 
-// method to check old password and new password match
-userSchema.methods.isPasswordCorrect = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+userSchema.methods.comparePassword = async function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
 };
 
 userSchema.methods.generateAccessToken = function () {
-  return jwt.sign(
-    {
-      _id: this._id,
-      email: this.email,
-      username: this.username,
-      fullname: this.fullname,
-    },
-    process.env.ACCESS_TOKEN_SECRET,
-    { expiresIn: process.env.ACCESS_TOKEN_EXPIRY }
-  );
-};
-userSchema.methods.generateRefreshToken = function () {
-  return jwt.sign(
-    {
-      _id: this._id,
-    },
-    process.env.REFRESH_TOKEN_SECRET,
-    { expiresIn: process.env.REFRESH_TOKEN_EXPIRY }
-  );
+  const payload = { id: this._id };
+  const secret = process.env.JWT_ACCESS_SECRET || "access-secret";
+  const expiresIn = process.env.JWT_ACCESS_EXPIRES_IN || "15m";
+  return jwt.sign(payload, secret, { expiresIn });
 };
 
-export const User = mongoose.model("User", userSchema);
+userSchema.methods.generateRefreshToken = function () {
+  const payload = { id: this._id };
+  const secret = process.env.JWT_REFRESH_SECRET || "refresh-secret";
+  const expiresIn = process.env.JWT_REFRESH_EXPIRES_IN || "7d";
+  return jwt.sign(payload, secret, { expiresIn });
+};
+
+const User = mongoose.model("User", userSchema);
+
+export { User };

@@ -35,17 +35,21 @@ const registerUser = asyncHandler(async (req, res) => {
     ? await uploadToCloudinary(coverImageLocalPath)
     : null;
 
-  if (!avatarUpload?.url) {
+  // Cloudinary returns `secure_url` (preferred) or `url`.
+  const avatarUrl = avatarUpload?.secure_url || avatarUpload?.url;
+  if (!avatarUrl) {
+    console.error("Avatar upload response:", avatarUpload);
     throw new ApiError(500, "Failed to upload avatar");
   }
 
+  // Create user
   // Create user
   const user = await User.create({
     fullname,
     email,
     username: username.toLowerCase(),
     password,
-    avatar: avatarUpload.url,
+    avatar: avatarUrl,
     coverimage: coverUpload?.url || "",
   });
 
@@ -56,14 +60,14 @@ const registerUser = asyncHandler(async (req, res) => {
   const createdUser = await user
     .findById(user._id)
     .select("-password -refreshToken");
-  
-    if(!createdUser){
-      throw new ApiError (500, "User creation failed");
-    } 
 
-  return res.status(201).json(
-    new ApiResponse(200, createdUser, "User registered successfully")
-  )
+  if (!createdUser) {
+    throw new ApiError(500, "User creation failed");
+  }
+
+  return res
+    .status(201)
+    .json(new ApiResponse(200, createdUser, "User registered successfully"));
 });
 
 export { registerUser };
