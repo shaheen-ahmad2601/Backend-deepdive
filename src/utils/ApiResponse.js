@@ -6,6 +6,7 @@ class ApiResponse {
         this.data = data;
     }   
 }
+export { ApiResponse };
 /*
 Purpose of ApiResponse
 It’s a standardized success response wrapper for your API.

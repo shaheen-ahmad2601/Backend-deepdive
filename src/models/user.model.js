@@ -1,6 +1,6 @@
 import mongoose, { Schema } from "mongoose";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs"; // we connot directly use bcrypt for hasing, we need to use some hooks from mongoose
+import bcrypt from "bcrypt"; // we connot directly use bcrypt for hasing, we need to use some hooks from mongoose
 
 const userSchema = new Schema(
   {
@@ -13,14 +13,14 @@ const userSchema = new Schema(
       lowercase: true,
     },
     email: {
-      type: string,
+      type: String,
       required: true,
       unique: true,
       trim: true,
       lowercase: true,
     },
     fullname: {
-      type: string,
+      type: String,
       required: true,
       trim: true,
       index: true,
